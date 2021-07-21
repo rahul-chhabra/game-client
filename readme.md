@@ -21,12 +21,9 @@ _Prerequisite: Game Server is up and running._
 <br/>
 
 1. In a console, Player 1 run the command from the project root directory and provide inputs like player id, player name, column to move etc.  
-<br/> 
-	`java -jar target/game-client-1.0.0.jar`  
-<br/> 
+>`java -jar target/game-client-1.0.0.jar`
 2. In a separate console, Player 2 run the same command from the project root directory and provide inputs.  
-<br/> 
-	`java -jar target/game-client-1.0.0.jar`
+>`java -jar target/game-client-1.0.0.jar`
 		
 
 ### Future Improvements
