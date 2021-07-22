@@ -1,5 +1,8 @@
 package com.mygame.client;
 
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
@@ -11,11 +14,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import com.mygame.client.domain.GameState;
 import com.mygame.client.domain.GameStatus;
 import com.mygame.client.domain.Player;
+import com.mygame.client.domain.PlayerState;
 
 /**
  * @author Rahul
@@ -23,8 +28,6 @@ import com.mygame.client.domain.Player;
  */
 @SpringBootTest
 @ExtendWith(MockitoExtension.class)
-//@SpringBootTest
-//@RunWith(MockitoJUnitRunner.class)
 public class GameClientRunnerTest {
 	
 	private final String MOCK_SERVER_URL ="http://localhost:8080";
@@ -39,49 +42,65 @@ public class GameClientRunnerTest {
 	private GameStatus mockGameStatus;
 	
 	@Mock
+	private ResponseEntity<GameStatus> mockResponseEntity;
+	
+	@Mock
 	private Player mockPlayer1;
 	
 	@Mock
 	private Player mockPlayer2;
 	
-//	@BeforeEach
-//    public void setUp()  {
-//		gameClientRunner = new GameClientRunner("http://localhost:8080");
-//    }
-	
 	@Test
-	public void test_1() throws Exception {
+	void whenGameAlreadyRunningThenExit() throws Exception {
 		
 		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/game/status", GameStatus.class)).thenReturn(mockGameStatus);
 		when(mockGameStatus.getGameState()).thenReturn(GameState.IN_PROGRESS);
 		
 		gameClientRunner.run();
+		
+		verify(mockGameStatus,times(1)).getGameState();
 	}
 	
-//	@Test
-	public void test_2() throws Exception {
+	@Test
+	void whenGameNotStartedAndServerConnectionBrokeThenExit() throws Exception {
 		
 		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/game/status", GameStatus.class)).thenReturn(mockGameStatus);
 		when(mockGameStatus.getGameState()).thenReturn(GameState.NOT_STARTED);
-		
-		gameClientRunner.run();
-	}
-	
-//	@Test - working. Need to add full scenario
-	public void test_3() throws Exception {
-		
-		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/game/status", GameStatus.class)).thenReturn(mockGameStatus);
-		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/player/1", Player.class)).thenReturn(mockPlayer1);
-		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/player/2", Player.class)).thenReturn(mockPlayer2);
-		when(mockGameStatus.getGameState()).thenReturn(GameState.NOT_STARTED);
+		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/player/1", Player.class)).thenThrow(new RuntimeException("Error occurred"));
 		
 		String input = "1";
 		input += "\n";
-		input +="rahul";
+		input +="Rahul";
 	    InputStream in = new ByteArrayInputStream(input.getBytes());
 	    System.setIn(in);
 		
 		gameClientRunner.run();
+		
+		verify(mockGameStatus,times(1)).getGameState();
+		verify(mockRestTemplate,times(1)).getForObject(MOCK_SERVER_URL+"/player/1", Player.class);
+	}
+	
+	@Test 
+	void whenGameAbortedByPlayerThenExit() throws Exception {
+		
+		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/game/status", GameStatus.class)).thenReturn(mockGameStatus);
+		when(mockGameStatus.getGameState()).thenReturn(GameState.NOT_STARTED);
+		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/player/1", Player.class)).thenReturn(mockPlayer1);
+		when(mockRestTemplate.getForObject(MOCK_SERVER_URL+"/player/2", Player.class)).thenReturn(mockPlayer2);
+		when(mockPlayer2.getPlayerState()).thenReturn(PlayerState.CONNECT);
+		when(mockRestTemplate.postForEntity(MOCK_SERVER_URL+"/game/start", null, GameStatus.class)).thenReturn(mockResponseEntity);
+		when(mockGameStatus.getGameState()).thenReturn(GameState.ABORTED);
+		
+		
+		String input = "1";
+		input += "\n";
+		input +="Rahul";
+	    InputStream in = new ByteArrayInputStream(input.getBytes());
+	    System.setIn(in);
+		
+		gameClientRunner.run();
+		
+		verify(mockRestTemplate,atLeast(3)).getForObject(MOCK_SERVER_URL+"/game/status", GameStatus.class);
 	}
 
 }
